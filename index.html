@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Treino de Basquete</title><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#0B131F"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Treino"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="icon" type="image/png" href="icon-192.png"><link rel="apple-touch-icon" href="apple-touch-icon.png"><style>.vid{margin-top:8px}.vid iframe{width:100%;aspect-ratio:16/9;border:0;border-radius:10px;background:#000}.vlink{margin-top:8px}</style><script>if("serviceWorker" in navigator)addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){});});</script><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Treino de Basquete</title><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#0B131F"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Treino"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="icon" type="image/png" href="icon-192.png"><link rel="apple-touch-icon" href="apple-touch-icon.png"><style>.vid{margin-top:8px;max-width:520px}.vid iframe{width:100%;aspect-ratio:16/9;border:0;border-radius:10px;background:#000}.vlink{margin-top:8px}</style><script>if("serviceWorker" in navigator)addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){});});</script><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Plano de Treino Basquete</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -469,7 +469,7 @@ async function loadAll(){
   var a=await SB.from('alunos').select('*').order('nome'),c=await SB.from('config').select('plano').eq('id',1).maybeSingle();
   if(a.error){panelErr=a.error.code||'erro';panelLoaded=true;tick();return;}
   panelErr='';await loadProfs();
-  students=a.data.map(function(r){var p=normProg(r.progresso);p.docId=r.id;p.nome=r.nome;p.token=r.token;return p;});
+  students=a.data.map(function(r){var p=normProg(r.progresso);p.docId=r.id;p.nome=r.nome;p.token=r.token;p.contato=r.contato||'';return p;});
   var np={};if(c.data&&c.data.plano)np.geral=normPlan(c.data.plano);else if(plans.geral)np.geral=plans.geral;
   a.data.forEach(function(r){if(r.plano)np[r.id]=normPlan(r.plano);});
   plans=np;
@@ -507,6 +507,15 @@ function videoHTML(it){
   return '';
 }
 window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();inst=e;try{renderHeader();}catch(x){}});
+function waLink(p){
+  var u=location.origin+location.pathname+'?a='+p.token;
+  var msg='Olá, '+(p.nome||'')+'! Aqui está o seu link de treino: '+u+'\n\nAbra no celular. Dica: use "Adicionar à tela inicial" para virar um app.';
+  var d=String(p.contato||'').replace(/\D/g,'');
+  if(d.length>=10&&d.length<=11)d='55'+d;
+  var base=(d.length>=12&&d.length<=13)?'https://wa.me/'+d:'https://wa.me/';
+  return base+'?text='+encodeURIComponent(msg);
+}
+function csvCell(v){v=String(v==null?'':v);if(/^[=+\-@\t\r]/.test(v))v="'"+v;return '"'+v.replace(/"/g,'""')+'"';}
 async function addStudent(f){
   var fd=new FormData(f),nome=String(fd.get('nome')||'').trim();if(!nome)return;
   var r=await SB.from('alunos').insert({nome:nome,contato:String(fd.get('contato')||'').trim()}).select().single();
@@ -677,7 +686,7 @@ function audBar(){
 }
 var INVITE='<form class="nameform" id="newstu" style="border:1px solid var(--line);border-radius:var(--r);padding:12px"><label>Nome do aluno<input class="fld" name="nome" required maxlength="60"></label><label>Contato (opcional)<input class="fld" name="contato" maxlength="80" placeholder="WhatsApp ou e-mail"></label><button type="submit" class="btn primary">Cadastrar aluno</button></form>';
 function panelView(){
-  var h='<section class="panel" style="display:flex;flex-direction:column;gap:14px"><div class="mh"><h2>Painel da turma</h2><span class="sub">Progresso da semana de cada aluno cadastrado</span></div>'+INVITE+profHTML();
+  var h='<section class="panel" style="display:flex;flex-direction:column;gap:14px"><div class="mh"><h2>Painel da turma</h2><span class="sub">Progresso da semana de cada aluno cadastrado</span></div>'+INVITE+'<div class="acts" style="margin-top:12px"><button type="button" class="btn" data-act="csv">Baixar planilha (CSV)</button></div>'+profHTML();
   if(!DB)return h+'<div class="empty" style="border:0">O painel precisa da conta conectada. Abra a página logado como professor.</div></section>';
   if(!panelLoaded)return h+'<div class="empty" style="border:0">Carregando alunos…</div></section>';
   if(panelErr)return h+'<div class="empty" style="border:0">Não consegui ler os dados dos alunos ('+esc(panelErr)+'). Confirme que você é editor ou dono da página.</div></section>';
@@ -702,7 +711,7 @@ function panelView(){
           var x=(c.cur&&p.items[it.id])||{},st=x.s||'Pendente';
           return '<div class="ln"><span class="st-'+st.replace(/\s/g,'')+'">'+STLBL[st]+'</span><span>'+esc(it.name)+(x.r?' <em>· '+esc(x.r)+'</em>':'')+(x.n?'<br><em>Nota: '+esc(x.n)+'</em>':'')+'</span></div>';
         }).join('')+'</div>';
-      }).join('')+'<div class="acts"><button type="button" class="btn sm primary" data-act="ptarget" data-id="'+esc(p.docId)+'">Montar treino deste aluno</button><button type="button" class="btn sm" data-act="plink" data-id="'+esc(p.docId)+'">Copiar link do aluno</button></div>'+(mine?'':'<div><button type="button" class="btn sm danger" data-act="pdel" data-id="'+esc(p.docId)+'">Remover aluno do painel</button></div>')+'</div>';
+      }).join('')+'<div class="acts"><button type="button" class="btn sm primary" data-act="ptarget" data-id="'+esc(p.docId)+'">Montar treino deste aluno</button><button type="button" class="btn sm" data-act="plink" data-id="'+esc(p.docId)+'">Copiar link do aluno</button><button type="button" class="btn sm" data-act="pwa" data-id="'+esc(p.docId)+'">Enviar pelo WhatsApp</button><button type="button" class="btn sm" data-act="newlink" data-id="'+esc(p.docId)+'">Gerar novo link</button></div>'+(mine?'':'<div><button type="button" class="btn sm danger" data-act="pdel" data-id="'+esc(p.docId)+'">Remover aluno do painel</button></div>')+'</div>';
     }
     return s+'</div>';
   }).join('')+'</div></section>';
@@ -959,6 +968,29 @@ var H={
  },
  pwd:function(){var n=prompt('Nova senha (mínimo 8 caracteres):');if(!n)return;if(n.length<8){toast('Senha muito curta');return;}SB.auth.updateUser({password:n}).then(function(r){toast(r.error?'Não foi possível alterar a senha':'Senha alterada');});},
  profdel:function(t){if(!t.dataset.armed){arm(t,'Confirmar','Remover');return;}callProf({acao:'remover',id:t.dataset.id},'Professor removido.');},
+ pwa:function(t){var p=students.filter(function(x){return x.docId===t.dataset.id})[0];if(!p)return;window.open(waLink(p),'_blank','noopener');},
+ newlink:function(t){
+   if(!t.dataset.armed){arm(t,'Confirmar: o link antigo deixa de funcionar','Gerar novo link');return;}
+   var id=t.dataset.id,nt=Array.from(crypto.getRandomValues(new Uint8Array(16))).map(function(b){return ('0'+b.toString(16)).slice(-2);}).join('');
+   SB.from('alunos').update({token:nt}).eq('id',id).then(function(r){
+     if(r.error){toast('Não foi possível gerar o novo link');return;}
+     students.forEach(function(x){if(x.docId===id)x.token=nt;});renderMain();toast('Novo link gerado. O antigo não funciona mais.');
+   });
+ },
+ csv:function(){
+   var rows=[['Aluno','Treino','Dia','Exercício','Série/duração','Status','Resultado','Anotação']];
+   students.filter(function(x){return x.docId!==me.id;}).forEach(function(p){
+     var pl=planOf(p.docId),cur=p.weekId===pl.weekId;
+     DAYS.forEach(function(d){(pl.days[d.k]||[]).forEach(function(it){
+       var q=(cur&&p.items[it.id])||{};
+       rows.push([p.nome,plans[p.docId]?'Individual':'Turma',d.n,it.name,it.dose,q.s||'Pendente',q.r||'',q.n||'']);
+     });});
+   });
+   var csv='\ufeff'+rows.map(function(r){return r.map(csvCell).join(';');}).join('\r\n');
+   var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+   a.download='treino-progresso-'+new Date().toISOString().slice(0,10)+'.csv';document.body.appendChild(a);a.click();a.remove();
+   setTimeout(function(){URL.revokeObjectURL(a.href);},1000);toast('Planilha baixada');
+ },
  vid:function(t){ui.vid=ui.vid===t.dataset.id?null:t.dataset.id;renderMain();},
  install:function(){if(!inst)return;inst.prompt();inst=null;renderHeader();},
  logout:function(){SB.auth.signOut().then(function(){location.reload();});},
