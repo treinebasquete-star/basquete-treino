@@ -1,0 +1,16 @@
+{
+  "name": "Treino de Basquete",
+  "short_name": "Treino",
+  "description": "Seu plano de treino de basquete",
+  "start_url": "./?pwa=1",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0B131F",
+  "theme_color": "#0B131F",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

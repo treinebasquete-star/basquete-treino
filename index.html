@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Treino de Basquete</title><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#0B131F"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Treino"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="icon" type="image/png" href="icon-192.png"><link rel="apple-touch-icon" href="apple-touch-icon.png"><style>.vid{margin-top:8px}.vid iframe{width:100%;aspect-ratio:16/9;border:0;border-radius:10px;background:#000}.vlink{margin-top:8px}</style><script>if("serviceWorker" in navigator)addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){});});</script><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Plano de Treino Basquete</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -271,7 +271,7 @@ h3.sec{font-size:20px;text-transform:uppercase;letter-spacing:.04em;margin-botto
 (function(){
 'use strict';
 /* CONFIGURAÇÃO: cole aqui os dados do seu projeto Supabase (Project Settings > API) */
-var SUPABASE_URL='https://pkjhjynbolzgothxyonp.supabase.co',SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBramhqeW5ib2x6Z290aHh5b25wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM2NTU0MTQsImV4cCI6MjEwOTIzMTQxNH0.wLBoxt1ZqD_vXHxicgXSNL-h-T3yzRZKeyv_jQLnWOI',SB=null,TOKEN=new URLSearchParams(location.search).get('a');
+var SUPABASE_URL='https://pkjhjynbolzgothxyonp.supabase.co',SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBramhqeW5ib2x6Z290aHh5b25wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM2NTU0MTQsImV4cCI6MjEwOTIzMTQxNH0.wLBoxt1ZqD_vXHxicgXSNL-h-T3yzRZKeyv_jQLnWOI',SB=null,TOKEN=(function(){var q=new URLSearchParams(location.search),a=q.get('a');try{if(a)localStorage.setItem('tb-aluno',a);else if(q.get('pwa')==='1')a=localStorage.getItem('tb-aluno');}catch(e){}return a;})(),inst=null;
 /* ---------- dados ---------- */
 var DAYS=[{k:'seg',n:'Segunda-feira',s:'Seg'},{k:'ter',n:'Terça-feira',s:'Ter'},{k:'qua',n:'Quarta-feira',s:'Qua'},{k:'qui',n:'Quinta-feira',s:'Qui'},{k:'sex',n:'Sexta-feira',s:'Sex'},{k:'sab',n:'Sábado',s:'Sáb'},{k:'dom',n:'Domingo',s:'Dom'}];
 var JS2KEY=['dom','seg','ter','qua','qui','sex','sab'];
@@ -492,6 +492,21 @@ function profHTML(){
   profs.map(function(p){var eu=p.user_id===me.id;return '<div class="acts" style="justify-content:space-between;margin-top:8px"><span>'+esc(p.email||p.user_id)+(eu?' (você)':'')+'</span>'+(eu?'':'<button type="button" class="btn sm danger" data-act="profdel" data-id="'+esc(p.user_id)+'">Remover</button>')+'</div>';}).join('')+
   '<form class="nameform" id="newprof" style="margin-top:12px"><label>E-mail do novo professor<input class="fld" name="email" type="email" required></label><label>Senha provisória (mín. 8 caracteres)<input class="fld" name="senha" type="text" minlength="8" required autocomplete="off"></label><button type="submit" class="btn primary">Adicionar professor</button></form></details>';
 }
+function ytId(u){
+  var m=String(u||'').match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/))([A-Za-z0-9_-]{11})/);
+  return m?m[1]:null;
+}
+function videoHTML(it){
+  var u=String(it.video||'').trim();if(!u)return '';
+  var id=ytId(u);
+  if(id){
+    if(ui.vid===it.id)return '<div class="vid"><iframe src="https://www.youtube-nocookie.com/embed/'+id+'?rel=0&modestbranding=1&playsinline=1" title="Vídeo: '+esc(it.name)+'" allow="accelerometer; encrypted-media; picture-in-picture" allowfullscreen loading="lazy"></iframe><button type="button" class="btn sm ghost" data-act="vid" data-id="'+it.id+'">Fechar vídeo</button></div>';
+    return '<div class="vlink"><button type="button" class="btn sm" data-act="vid" data-id="'+it.id+'">▶ Ver como fazer</button></div>';
+  }
+  if(/^https?:\/\//i.test(u))return '<div class="vlink"><a class="btn sm" href="'+esc(u)+'" target="_blank" rel="noopener noreferrer">▶ Ver como fazer</a></div>';
+  return '';
+}
+window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();inst=e;try{renderHeader();}catch(x){}});
 async function addStudent(f){
   var fd=new FormData(f),nome=String(fd.get('nome')||'').trim();if(!nome)return;
   var r=await SB.from('alunos').insert({nome:nome,contato:String(fd.get('contato')||'').trim()}).select().single();
@@ -571,7 +586,7 @@ function renderHeader(){
   Array.prototype.forEach.call(document.querySelectorAll('#nav button'),function(b){b.setAttribute('aria-selected',String(b.dataset.v===ui.view));if(b.dataset.cm)b.hidden=!CM();});
   document.getElementById('days').hidden=ui.view==='semana'||ui.view==='painel';
   var cb=document.getElementById('coachbtn');cb.hidden=!isCoach;cb.setAttribute('aria-pressed',String(ui.coachOn));cb.textContent='Modo professor: '+(ui.coachOn?'ligado':'desligado');
-  document.getElementById('who').innerHTML=isCoach?'<span>Professor</span><button type="button" data-act="pwd">alterar senha</button><button type="button" data-act="logout">sair</button>':(prog.nome?'<span>'+esc(prog.nome)+'</span>':'');
+  document.getElementById('who').innerHTML=isCoach?'<span>Professor</span><button type="button" data-act="pwd">alterar senha</button><button type="button" data-act="logout">sair</button>':(prog.nome?'<span>'+esc(prog.nome)+'</span>':'')+(inst?'<button type="button" data-act="install">instalar app</button>':'');
   setSync();
 }
 function renderMain(){
@@ -588,7 +603,7 @@ function itemHTML(raw,idx,n){
    '<div class="ibody">'+
     '<div class="imeta">'+chip(it.cat)+'<span>'+esc(it.dose)+'</span><span>· descanso '+esc(it.rest)+'</span><span>· ~'+(+it.min||0)+' min</span>'+
       (cm?'<span class="mv"><button type="button" class="btn sm ghost" data-act="up" data-id="'+it.id+'" '+(idx===0?'disabled':'')+' aria-label="Subir">↑</button><button type="button" class="btn sm ghost" data-act="down" data-id="'+it.id+'" '+(idx===n-1?'disabled':'')+' aria-label="Descer">↓</button></span>':'')+'</div>'+
-    '<div class="iname">'+esc(it.name)+'</div>'+
+    '<div class="iname">'+esc(it.name)+'</div>'+videoHTML(it)+
     (it.desc?'<div class="idesc">'+esc(it.desc)+'</div>':'')+
     (it.tip?'<div class="tip">'+esc(it.tip)+'</div>':'')+
     (it.result?'<div class="result">Resultado: '+esc(it.result)+'</div>':'')+
@@ -600,7 +615,8 @@ function itemHTML(raw,idx,n){
    (ed?'<div class="editp">'+
      (cm?'<label>Séries / duração<input class="fld" data-in="dose" data-id="'+it.id+'" value="'+esc(it.dose)+'"></label>'+
      '<label>Descanso<input class="fld" data-in="rest" data-id="'+it.id+'" value="'+esc(it.rest)+'"></label>'+
-     '<label>Minutos<input class="fld" type="number" min="0" max="240" inputmode="numeric" data-in="min" data-id="'+it.id+'" value="'+(+it.min||0)+'"></label>':'')+
+     '<label>Minutos<input class="fld" type="number" min="0" max="240" inputmode="numeric" data-in="min" data-id="'+it.id+'" value="'+(+it.min||0)+'"></label>'+
+     '<label class="wide">Vídeo de demonstração (link do YouTube)<input class="fld" data-in="video" data-id="'+it.id+'" placeholder="Cole aqui o link do vídeo" value="'+esc(it.video||'')+'"></label>':'')+
      '<label class="wide">Resultado<input class="fld" data-in="result"'+(cm?' readonly':'')+' data-id="'+it.id+'" placeholder="Ex.: 17/20 acertos, 3 voltas em 40s" value="'+esc(it.result)+'"></label>'+
      '<label class="wide">Anotações<textarea class="fld" data-in="note"'+(cm?' readonly':'')+' data-id="'+it.id+'" placeholder="Como foi o treino, ajustes para a próxima vez">'+esc(it.note)+'</textarea></label>'+
    '</div>':'')+
@@ -943,6 +959,8 @@ var H={
  },
  pwd:function(){var n=prompt('Nova senha (mínimo 8 caracteres):');if(!n)return;if(n.length<8){toast('Senha muito curta');return;}SB.auth.updateUser({password:n}).then(function(r){toast(r.error?'Não foi possível alterar a senha':'Senha alterada');});},
  profdel:function(t){if(!t.dataset.armed){arm(t,'Confirmar','Remover');return;}callProf({acao:'remover',id:t.dataset.id},'Professor removido.');},
+ vid:function(t){ui.vid=ui.vid===t.dataset.id?null:t.dataset.id;renderMain();},
+ install:function(){if(!inst)return;inst.prompt();inst=null;renderHeader();},
  logout:function(){SB.auth.signOut().then(function(){location.reload();});},
  plink:function(t){var p=students.filter(function(x){return x.docId===t.dataset.id})[0];if(!p)return;var u=location.origin+location.pathname+'?a='+p.token;
    if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(u).then(function(){toast('Link do aluno copiado');},function(){prompt('Copie o link:',u);});else prompt('Copie o link:',u);},
