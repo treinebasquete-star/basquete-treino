@@ -545,7 +545,7 @@ function evForm(e){
   e=e||{};var d=e.data||(ui.cal.sel||todayStr());
   var opts=Object.keys(EV).map(function(k){return '<option value="'+k+'"'+((e.tipo||'treino')===k?' selected':'')+'>'+EV[k].n+'</option>';}).join('');
   return '<div class="mh"><h2>'+(e.id?'Editar evento':'Novo evento')+'</h2><button type="button" class="btn sm" data-act="close">Fechar</button></div>'+
-   '<form class="nameform" id="evform"><input type="hidden" name="id" value="'+esc(e.id||'')+'">'+
+   '<form class="nameform" id="evform"><input type="hidden" name="evid" value="'+esc(e.id||'')+'">'+
    '<label>Tipo<select class="fld" name="tipo">'+opts+'</select></label>'+
    '<label>Título (opcional)<input class="fld" name="titulo" maxlength="80" value="'+esc(e.titulo||'')+'" placeholder="Se vazio, usa o tipo do evento"></label>'+
    '<label>Data<input class="fld" type="date" name="data" required value="'+esc(d)+'"></label>'+
@@ -557,7 +557,7 @@ function evForm(e){
    '<button type="submit" class="btn primary">Salvar</button></form>';
 }
 async function saveEvento(f){
-  var fd=new FormData(f),id=String(fd.get('id')||''),g=function(n){return String(fd.get(n)||'').trim()||null;};
+  var fd=new FormData(f),id=String(fd.get('evid')||''),g=function(n){return String(fd.get(n)||'').trim()||null;};
   var o={tipo:String(fd.get('tipo')),titulo:g('titulo'),data:g('data'),hora:g('hora'),local:g('local'),adversario:g('adversario'),resultado:g('resultado'),observacoes:g('observacoes')};
   if(!o.titulo)o.titulo=o.adversario?(o.tipo==='treino'?'Treino':'Jogo')+' vs '+o.adversario:(EV[o.tipo]||EV.outro).n;
   if(!o.data){toast('Escolha a data do evento');return;}
@@ -1117,7 +1117,7 @@ document.addEventListener('change',function(e){
   if(e.target.dataset&&e.target.dataset.in==='aud')setTarget(e.target.value);
 });
 document.addEventListener('submit',function(e){
-  var id=e.target.id;
+  var id=e.target.getAttribute('id');
   if(id==='loginform'){e.preventDefault();doLogin(e.target);return;}
   if(id==='newprof'){e.preventDefault();var pf=new FormData(e.target);callProf({acao:'criar',email:String(pf.get('email')),senha:String(pf.get('senha'))},'Professor adicionado.',e.target);return;}
   if(id==='evform'){e.preventDefault();saveEvento(e.target);return;}
