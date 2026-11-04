@@ -547,7 +547,7 @@ function evForm(e){
   return '<div class="mh"><h2>'+(e.id?'Editar evento':'Novo evento')+'</h2><button type="button" class="btn sm" data-act="close">Fechar</button></div>'+
    '<form class="nameform" id="evform"><input type="hidden" name="id" value="'+esc(e.id||'')+'">'+
    '<label>Tipo<select class="fld" name="tipo">'+opts+'</select></label>'+
-   '<label>Título<input class="fld" name="titulo" maxlength="80" value="'+esc(e.titulo||'')+'" placeholder="Ex.: Treino de arremesso"></label>'+
+   '<label>Título (opcional)<input class="fld" name="titulo" maxlength="80" value="'+esc(e.titulo||'')+'" placeholder="Se vazio, usa o tipo do evento"></label>'+
    '<label>Data<input class="fld" type="date" name="data" required value="'+esc(d)+'"></label>'+
    '<label>Hora<input class="fld" type="time" name="hora" value="'+esc(String(e.hora||'').slice(0,5))+'"></label>'+
    '<label>Local<input class="fld" name="local" maxlength="80" value="'+esc(e.local||'')+'"></label>'+
@@ -559,8 +559,8 @@ function evForm(e){
 async function saveEvento(f){
   var fd=new FormData(f),id=String(fd.get('id')||''),g=function(n){return String(fd.get(n)||'').trim()||null;};
   var o={tipo:String(fd.get('tipo')),titulo:g('titulo'),data:g('data'),hora:g('hora'),local:g('local'),adversario:g('adversario'),resultado:g('resultado'),observacoes:g('observacoes')};
-  if(!o.titulo&&o.adversario)o.titulo='Jogo vs '+o.adversario;
-  if(!o.titulo||!o.data){toast('Preencha o título e a data');return;}
+  if(!o.titulo)o.titulo=o.adversario?(o.tipo==='treino'?'Treino':'Jogo')+' vs '+o.adversario:(EV[o.tipo]||EV.outro).n;
+  if(!o.data){toast('Escolha a data do evento');return;}
   var r=id?await SB.from('eventos').update(o).eq('id',id):await SB.from('eventos').insert(o);
   if(r.error){toast('Não foi possível salvar o evento');return;}
   closeModal();await loadEventos();ui.cal.sel=o.data;ui.cal.y=+o.data.slice(0,4);ui.cal.m=+o.data.slice(5,7)-1;renderMain();toast('Evento salvo');
