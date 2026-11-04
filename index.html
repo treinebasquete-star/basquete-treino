@@ -420,7 +420,7 @@ var profs=[],plans={},pendKey='geral',planReady=false,students=[],panelUnsub=nul
 function CM(){return isCoach&&ui.coachOn;}
 
 /* ---------- persistência ---------- */
-var tPlan=null,tProg=null,wPlan=false,wProg=false,qPlan=false,qProg=false;
+var tPlan=null,tProg=null,wPlan=false,wProg=false,qPlan=false,qProg=false,pendProg=false,pendPlan=false;
 function setSync(){
   var el=document.getElementById('sync'),txt='Salvo neste aparelho',ok=false;
   if(syncState==='saving'){txt='Salvando…';}
@@ -445,13 +445,16 @@ function errState(e){return e&&(e.code==='invalid_argument')?'denied':'offline';
 async function flushProg(){
   if(!progRef)return;if(wProg){qProg=true;return;}
   wProg=true;syncState='saving';setSync();
-  try{await progRef.set({json:JSON.stringify(prog)});syncState='ok';}catch(e){syncState=errState(e);}
+  try{await progRef.set({json:JSON.stringify(prog)});syncState='ok';pendProg=false;}catch(e){syncState=errState(e);pendProg=syncState==='offline';}
   wProg=false;setSync();if(qProg){qProg=false;flushProg();}
 }
 async function flushPlan(){
   if(!SB||!isCoach)return;if(wPlan){qPlan=true;return;}
   wPlan=true;var k=pendKey,pl=plans[k];
-  try{if(pl){if(k==='geral')await SB.from('config').upsert({id:1,plano:pl});else await SB.from('alunos').update({plano:pl}).eq('id',k);}}catch(e){}
+  try{
+    if(pl){var x=(k==='geral')?await SB.from('config').upsert({id:1,plano:pl}):await SB.from('alunos').update({plano:pl}).eq('id',k);if(x&&x.error)throw x.error;}
+    pendPlan=false;
+  }catch(e){if(!pendPlan)toast('Sem conexão: a alteração será enviada quando a internet voltar');pendPlan=true;}
   wPlan=false;if(qPlan){qPlan=false;flushPlan();}
 }
 function fmtShort(d){return new Intl.DateTimeFormat('pt-BR',{day:'numeric',month:'short'}).format(d).replace('.','');}
@@ -477,7 +480,8 @@ async function doLogin(f){
 }
 async function enterCoach(u){
   var q=await SB.from('professores').select('user_id').eq('user_id',u.id);
-  if(q.error||!q.data||!q.data.length){await SB.auth.signOut();gateShow(loginHTML('Esta conta não tem acesso de professor.'));return;}
+  if(q.error){gateShow('<h2>Sem conexão</h2><p>Não consegui confirmar o seu acesso. O painel do professor precisa de internet.</p><button type="button" class="btn primary" data-act="reload">Tentar de novo</button>');return;}
+  if(!q.data||!q.data.length){await SB.auth.signOut();gateShow(loginHTML('Esta conta não tem acesso de professor.'));return;}
   isCoach=true;ui.coachOn=true;me.id=u.id;DB=SB;progRef=null;
   var c=await SB.from('config').select('plano').eq('id',1).maybeSingle();
   if(c.data&&c.data.plano){plan=normPlan(c.data.plano);plans.geral=plan;}
@@ -518,7 +522,11 @@ function ymd(y,m,d){return y+'-'+('0'+(m+1)).slice(-2)+'-'+('0'+d).slice(-2);}
 function todayStr(){var n=new Date();return ymd(n.getFullYear(),n.getMonth(),n.getDate());}
 function fmtD(k){var a=String(k).split('-'),d=new Date(+a[0],+a[1]-1,+a[2]);return WDN[d.getDay()]+', '+a[2]+'/'+a[1];}
 async function loadEventos(){var q=await SB.from('eventos').select('*').order('data').order('hora');if(!q.error)evs=q.data||[];}
-async function loadAgendaAluno(){var q=await SB.rpc('aluno_agenda',{p_token:TOKEN});evs=Array.isArray(q.data)?q.data:[];}
+async function loadAgendaAluno(){
+  var k='tb-ag-'+TOKEN;
+  try{var q=await SB.rpc('aluno_agenda',{p_token:TOKEN});if(!q.error&&Array.isArray(q.data)){evs=q.data;writeLocal(k,evs);return;}}catch(e){}
+  evs=readLocal(k)||evs||[];
+}
 function evHTML(e){
   var m=EV[e.tipo]||EV.outro,cm=CM();
   return '<div class="ev" style="--evc:'+m.c+';--evt:'+m.t+'"><div class="evt">'+m.n+'</div><h4>'+esc(e.titulo)+'</h4><div class="evm"><span>'+fmtD(e.data)+(e.hora?' · '+esc(String(e.hora).slice(0,5)):'')+'</span>'+(e.local?'<span>📍 '+esc(e.local)+'</span>':'')+(e.adversario?'<span>vs '+esc(e.adversario)+'</span>':'')+(e.resultado?'<span>Resultado: <b>'+esc(e.resultado)+'</b></span>':'')+'</div>'+
@@ -600,30 +608,51 @@ async function addStudent(f){
   if(r.error){toast('Não foi possível cadastrar o aluno');return;}
   await loadAll();ui.open=r.data.id;renderMain();toast('Aluno cadastrado. Use “Copiar link do aluno”.');
 }
+async function refreshStudent(){
+  if(!TOKEN||!SB||wProg)return;
+  try{
+    var q=await SB.rpc('aluno_get',{p_token:TOKEN});
+    if(!q.error&&q.data){plan=normPlan(q.data.plano);writeLocal(PK,plan);writeLocal('tb-cache-'+TOKEN,{nome:q.data.nome,plano:q.data.plano});await loadAgendaAluno();reconcile();render();}
+  }catch(e){}
+}
 async function enterStudent(){
   GK='tb2-prog-'+TOKEN;PK='tb2-plan-'+TOKEN;
-  var r=await SB.rpc('aluno_get',{p_token:TOKEN});
-  if(r.error||!r.data){gateShow('<h2>Link inválido</h2><p>Este link não existe ou foi desativado. Peça um novo link ao seu professor.</p>');return;}
-  var srv=normProg(r.data.progresso),loc=normProg(readLocal(GK));
-  prog=loc.updatedAt>srv.updatedAt?loc:srv;prog.nome=r.data.nome;prog.uid=TOKEN;
-  plan=normPlan(r.data.plano);writeLocal(PK,plan);planReady=true;await loadAgendaAluno();
-  progRef={set:function(o){return SB.rpc('aluno_save',{p_token:TOKEN,p_progresso:JSON.parse(o.json)}).then(function(x){if(x.error)throw x.error;});}};
-  reconcile();gateHide();render();
-  if(prog.updatedAt>srv.updatedAt)flushProg();else{syncState='ok';setSync();}
-  document.addEventListener('visibilitychange',async function(){
-    if(document.hidden||wProg)return;var q=await SB.rpc('aluno_get',{p_token:TOKEN});
-    if(q.data){plan=normPlan(q.data.plano);writeLocal(PK,plan);await loadAgendaAluno();reconcile();render();}
-  });
+  var ck=readLocal('tb-cache-'+TOKEN),d=null,off=false;
+  if(SB){
+    try{
+      var r=await SB.rpc('aluno_get',{p_token:TOKEN});
+      if(!r.error){
+        if(!r.data){try{localStorage.removeItem('tb-cache-'+TOKEN);}catch(e){}gateShow('<h2>Link inválido</h2><p>Este link não existe ou foi desativado. Peça um novo link ao seu professor.</p>');return;}
+        d=r.data;
+      }
+    }catch(e){}
+  }
+  if(d)writeLocal('tb-cache-'+TOKEN,{nome:d.nome,plano:d.plano});
+  else if(ck){d={nome:ck.nome,plano:ck.plano,progresso:null};off=true;}
+  else{gateShow('<h2>Sem conexão</h2><p>Abra o seu link uma vez com internet. Depois disso o app também abre sem sinal.</p>');return;}
+  var srv=normProg(d.progresso),loc=normProg(readLocal(GK));
+  prog=(off||loc.updatedAt>srv.updatedAt)?loc:srv;prog.nome=d.nome;prog.uid=TOKEN;
+  plan=normPlan(d.plano);writeLocal(PK,plan);planReady=true;
+  progRef={set:function(o){if(!SB)return Promise.reject({code:'offline'});return SB.rpc('aluno_save',{p_token:TOKEN,p_progresso:JSON.parse(o.json)}).then(function(x){if(x.error)throw x.error;});}};
+  await loadAgendaAluno();reconcile();gateHide();render();
+  if(off){syncState='offline';pendProg=prog.updatedAt>0;setSync();}
+  else if(prog.updatedAt>srv.updatedAt)flushProg();else{syncState='ok';setSync();}
+  document.addEventListener('visibilitychange',function(){if(!document.hidden){retrySync();refreshStudent();}});
 }
+function retrySync(){if(pendProg&&progRef)flushProg();if(pendPlan&&isCoach)flushPlan();}
+addEventListener('online',function(){retrySync();refreshStudent();});
+addEventListener('offline',function(){if(progRef||isCoach){syncState='offline';setSync();}});
+setInterval(retrySync,30000);
 (async function(){
   gateShow('<p>Carregando…</p>');
-  if(!window.supabase||/COLE_AQUI/.test(SUPABASE_URL)){gateShow('<h2>Configuração pendente</h2><p>Preencha SUPABASE_URL e SUPABASE_KEY no início do script do index.html (veja o README).</p>');return;}
-  SB=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+  if(/COLE_AQUI/.test(SUPABASE_URL)){gateShow('<h2>Configuração pendente</h2><p>Preencha SUPABASE_URL e SUPABASE_KEY no início do script do index.html (veja o README).</p>');return;}
+  if(window.supabase)SB=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
   try{
     if(TOKEN){await enterStudent();return;}
+    if(!SB){gateShow('<h2>Sem conexão</h2><p>O painel do professor precisa de internet. Tente de novo quando estiver online.</p><button type="button" class="btn primary" data-act="reload">Tentar de novo</button>');return;}
     var ss=await SB.auth.getSession();
     if(ss.data&&ss.data.session)enterCoach(ss.data.session.user);else gateShow(loginHTML());
-  }catch(e){gateShow('<h2>Sem conexão</h2><p>Não consegui falar com o servidor. Tente novamente.</p>');}
+  }catch(e){gateShow('<h2>Sem conexão</h2><p>Não consegui falar com o servidor. Tente novamente.</p><button type="button" class="btn primary" data-act="reload">Tentar de novo</button>');}
 })();
 
 /* ---------- utilidades ---------- */
@@ -1079,6 +1108,7 @@ var H={
    if(!t.dataset.armed){arm(t,'Confirmar exclusão','Excluir');return;}
    SB.from('eventos').delete().eq('id',t.dataset.id).then(function(r){if(r.error){toast('Não foi possível excluir');return;}evs=evs.filter(function(x){return x.id!==t.dataset.id;});renderMain();toast('Evento excluído');});
  },
+ reload:function(){location.reload();},
  theme:function(){applyTheme(themeNow()==='dark'?'light':'dark');renderHeader();},
  vid:function(t){ui.vid=ui.vid===t.dataset.id?null:t.dataset.id;renderMain();},
  install:function(){if(!inst)return;inst.prompt();inst=null;renderHeader();},
