@@ -369,6 +369,7 @@ var TEMPLATES=[
 var PK='tb2-plan',GK='tb2-prog';
 var uid=function(){return Math.random().toString(36).slice(2,9)};
 function clone(o){return JSON.parse(JSON.stringify(o));}
+var VIDEO_DEF={e01:'https://www.youtube.com/watch?v=J_KPdvBcC0s',e02:'https://www.youtube.com/watch?v=tFLWK-zXCcw',e06:'https://www.youtube.com/watch?v=XDCr4fXRyNE',e10:'https://www.youtube.com/watch?v=K7l-4EAHiVw',e20:'https://www.youtube.com/watch?v=K7l-4EAHiVw',e25:'https://www.youtube.com/watch?v=K7l-4EAHiVw',e29:'https://www.youtube.com/watch?v=K7l-4EAHiVw',x15:'https://www.youtube.com/watch?v=K7l-4EAHiVw',e11:'https://www.youtube.com/watch?v=i20arLItcIY',x16:'https://www.youtube.com/watch?v=9Cw0NrpVBG4',e23:'https://www.youtube.com/watch?v=9Cw0NrpVBG4',x28:'https://www.youtube.com/watch?v=9Cw0NrpVBG4',e16:'https://www.youtube.com/watch?v=B1bh7pvFcQE',x04:'https://www.youtube.com/watch?v=B1bh7pvFcQE',x17:'https://www.youtube.com/watch?v=_-2R7uaTmIk',x06:'https://www.youtube.com/watch?v=C1SmkUaOS0E',x25:'https://www.youtube.com/watch?v=so9pLSnhUG8'};
 function mkItem(e,id){return {id:id||uid(),ex:e.id,cat:e.cat,name:e.name,desc:e.desc||'',dose:e.dose,rest:e.rest,min:+e.min||0,tip:e.tip||''};}
 function getBuiltin(id){return BUILTIN.filter(function(e){return e.id===id})[0];}
 function allEx(){return BUILTIN.concat(plan.custom);}
@@ -497,7 +498,7 @@ function ytId(u){
   return m?m[1]:null;
 }
 function videoHTML(it){
-  var u=String(it.video||'').trim();if(!u)return '';
+  var u=String(it.video||VIDEO_DEF[it.ex]||'').trim();if(!u)return '';
   var id=ytId(u);
   if(id){
     if(ui.vid===it.id)return '<div class="vid"><iframe src="https://www.youtube-nocookie.com/embed/'+id+'?rel=0&modestbranding=1&playsinline=1" title="Vídeo: '+esc(it.name)+'" allow="accelerometer; encrypted-media; picture-in-picture" allowfullscreen loading="lazy"></iframe><button type="button" class="btn sm ghost" data-act="vid" data-id="'+it.id+'">Fechar vídeo</button></div>';
@@ -625,7 +626,7 @@ function itemHTML(raw,idx,n){
      (cm?'<label>Séries / duração<input class="fld" data-in="dose" data-id="'+it.id+'" value="'+esc(it.dose)+'"></label>'+
      '<label>Descanso<input class="fld" data-in="rest" data-id="'+it.id+'" value="'+esc(it.rest)+'"></label>'+
      '<label>Minutos<input class="fld" type="number" min="0" max="240" inputmode="numeric" data-in="min" data-id="'+it.id+'" value="'+(+it.min||0)+'"></label>'+
-     '<label class="wide">Vídeo de demonstração (link do YouTube)<input class="fld" data-in="video" data-id="'+it.id+'" placeholder="Cole aqui o link do vídeo" value="'+esc(it.video||'')+'"></label>':'')+
+     '<label class="wide">Vídeo de demonstração (link do YouTube)<input class="fld" data-in="video" data-id="'+it.id+'" placeholder="'+(VIDEO_DEF[it.ex]?'Já tem vídeo padrão. Cole outro link para trocar':'Cole aqui o link do vídeo')+'" value="'+esc(it.video||'')+'"></label>'+'<div class="wide"><a class="btn sm" target="_blank" rel="noopener noreferrer" href="https://www.youtube.com/results?search_query='+encodeURIComponent(it.name+' basquete')+'">🔎 Buscar vídeo no YouTube</a></div>':'')+
      '<label class="wide">Resultado<input class="fld" data-in="result"'+(cm?' readonly':'')+' data-id="'+it.id+'" placeholder="Ex.: 17/20 acertos, 3 voltas em 40s" value="'+esc(it.result)+'"></label>'+
      '<label class="wide">Anotações<textarea class="fld" data-in="note"'+(cm?' readonly':'')+' data-id="'+it.id+'" placeholder="Como foi o treino, ajustes para a próxima vez">'+esc(it.note)+'</textarea></label>'+
    '</div>':'')+
