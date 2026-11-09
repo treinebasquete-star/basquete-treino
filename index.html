@@ -1,4 +1,5 @@
 <!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Treino de Basquete</title><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" id="tc" content="#F3F0EB"><script>try{var t=localStorage.getItem("tb-tema");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;}catch(e){}</script><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Treino"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="icon" type="image/png" href="icon-192.png"><link rel="apple-touch-icon" href="apple-touch-icon.png"><style>.vid{margin-top:8px;max-width:520px}
+.nav{overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;max-width:100%}.nav::-webkit-scrollbar{display:none}.nav button{flex:none;white-space:nowrap}@media (max-width:480px){.nav button{padding:10px 11px;font-size:14px}}
 .cal-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;flex-wrap:wrap}
 .cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
 .cal .wd{font-size:11px;text-align:center;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding:4px 0}
@@ -277,6 +278,7 @@ h3.sec{font-size:20px;text-transform:uppercase;letter-spacing:.04em;margin-botto
     <button type="button" role="tab" data-act="view" data-v="agenda">Agenda</button>
     <button type="button" role="tab" data-act="view" data-v="biblioteca" data-cm="1">Biblioteca</button>
     <button type="button" role="tab" data-act="view" data-v="painel" data-cm="1">Painel da turma</button>
+    <button type="button" role="tab" data-act="view" data-v="clientes" data-super="1" hidden>Clientes</button>
   </nav>
   <div class="days" id="days" role="group" aria-label="Dias da semana"></div>
   <main id="main"></main>
@@ -416,7 +418,7 @@ var ui={view:'treino',cal:{y:new Date().getFullYear(),m:new Date().getMonth(),se
 ui.lib.day=ui.day;
 var P=null,G=null,S=null,onClose=null;
 var DB=null,planRef=null,progRef=null,me={id:null},isCoach=false,syncState='local';
-var ORG=null,profs=[],plans={},pendKey='geral',planReady=false,students=[],panelUnsub=null,panelLoaded=false,panelErr='';
+var SUPER=false,clientes=[],ORG=null,profs=[],plans={},pendKey='geral',planReady=false,students=[],panelUnsub=null,panelLoaded=false,panelErr='';
 function CM(){return isCoach&&ui.coachOn;}
 
 /* ---------- persistência ---------- */
@@ -468,7 +470,7 @@ function reconcile(){
   if(prog.updatedAt||prog.nome)saveProg();else{statRecalc();}
   return true;
 }
-function tick(){var a=(document.activeElement||{}).tagName||'';if(/INPUT|TEXTAREA|SELECT/.test(a))return;if(ui.view==='painel'||ui.view==='agenda')renderMain();else if(ui.target!=='geral')render();else renderHeader();}
+function tick(){var a=(document.activeElement||{}).tagName||'';if(/INPUT|TEXTAREA|SELECT/.test(a))return;if(ui.view==='painel'||ui.view==='agenda'||ui.view==='clientes')renderMain();else if(ui.target!=='geral')render();else renderHeader();}
 function startPanel(){}
 function gateShow(h){document.getElementById('app').hidden=true;document.getElementById('gate').hidden=false;document.getElementById('gatebody').innerHTML=h;}
 function gateHide(){document.getElementById('gate').hidden=true;document.getElementById('app').hidden=false;}
@@ -489,13 +491,14 @@ async function enterCoach(u){
   var c=await SB.from('config').select('plano').maybeSingle();
   if(c.data&&c.data.plano){plan=normPlan(c.data.plano);plans.geral=plan;}
   else{plans.geral=plan;ui.target='geral';savePlan();}
+  try{var sp=await SB.rpc('is_super');SUPER=sp.data===true;}catch(e){}
   gateHide();render();await loadAll();setInterval(loadAll,20000);
 }
 async function loadAll(){
   if(!SB||!isCoach)return;
   var a=await SB.from('alunos').select('*').order('nome'),c=await SB.from('config').select('plano').maybeSingle();
   if(a.error){panelErr=a.error.code||'erro';panelLoaded=true;tick();return;}
-  panelErr='';await loadProfs();await loadEventos();
+  panelErr='';await loadProfs();await loadEventos();if(SUPER)await loadClientes();
   students=a.data.map(function(r){var p=normProg(r.progresso);p.docId=r.id;p.nome=r.nome;p.token=r.token;p.contato=r.contato||'';return p;});
   var np={};if(c.data&&c.data.plano)np.geral=normPlan(c.data.plano);else if(plans.geral)np.geral=plans.geral;
   a.data.forEach(function(r){if(r.plano)np[r.id]=normPlan(r.plano);});
@@ -507,6 +510,40 @@ async function loadAll(){
   panelLoaded=true;tick();
 }
 document.addEventListener('toggle',function(e){if(e.target&&e.target.id==='profbox')ui.profOpen=e.target.open;},true);
+var ST={teste:{n:'Em teste',c:'var(--accent)',t:'var(--accent-text)'},ativo:{n:'Ativo',c:'var(--ok)',t:'var(--ok)'},suspenso:{n:'Suspenso',c:'var(--warn)',t:'var(--warn)'},cancelado:{n:'Cancelado',c:'var(--danger)',t:'var(--danger)'}};
+async function loadClientes(){if(!SB||!SUPER)return;var q=await SB.rpc('admin_clientes');if(!q.error&&Array.isArray(q.data))clientes=q.data;}
+function cliHTML(c){
+  var s=ST[c.status]||ST.ativo,meu=(c.professores||[]).some(function(p){return p.user_id===me.id;});
+  var b=function(st,lbl){return '<button type="button" class="btn sm" data-act="cstatus" data-id="'+esc(c.id)+'" data-s="'+st+'">'+lbl+'</button>';};
+  var a='';
+  if(c.status==='teste')a+=b('ativo','Ativar (pagou)');
+  if(c.status==='suspenso'||c.status==='cancelado')a+=b('ativo','Reativar');
+  if(!meu&&(c.status==='teste'||c.status==='ativo'))a+=b('suspenso','Suspender');
+  if(!meu&&(c.status==='ativo'||c.status==='suspenso'))a+=b('cancelado','Cancelar');
+  var profs_=(c.professores||[]).map(function(p){return '<div class="acts" style="justify-content:space-between;margin-top:6px"><span>'+esc(p.email||p.user_id)+'</span><button type="button" class="btn sm" data-act="cpwd" data-id="'+esc(p.user_id)+'">Nova senha</button></div>';}).join('');
+  return '<div class="ev" style="--evc:'+s.c+';--evt:'+s.t+'"><div class="evt">'+s.n+(meu?' · sua conta':'')+'</div><h4>'+esc(c.nome)+'</h4><div class="evm"><span>'+(+c.alunos)+' aluno(s)</span><span>'+(+c.ativos7d)+' ativo(s) em 7 dias</span><span>'+(+c.eventos)+' evento(s)</span><span>Última atividade: '+(c.ultima?ago(Date.parse(c.ultima)):'nenhuma')+'</span><span>Desde '+new Date(c.criado_em).toLocaleDateString('pt-BR')+'</span></div>'+profs_+(a?'<div class="acts" style="margin-top:10px">'+a+'</div>':'')+'</div>';
+}
+function clientesView(){
+  var n={ativo:0,teste:0,off:0,alunos:0,a7:0};
+  clientes.forEach(function(c){if(c.status==='ativo')n.ativo++;else if(c.status==='teste')n.teste++;else n.off++;n.alunos+=(+c.alunos);n.a7+=(+c.ativos7d);});
+  return '<section class="panel"><div class="cal-nav"><h3 class="sec" style="margin:0">Clientes</h3><button type="button" class="btn primary" data-act="cnew">+ Novo cliente</button></div>'+
+   '<div class="tiles"><div class="tile"><b>'+clientes.length+'</b><span>Clientes</span></div><div class="tile"><b>'+n.ativo+'</b><span>Ativos</span></div><div class="tile"><b>'+n.teste+'</b><span>Em teste</span></div><div class="tile"><b>'+n.off+'</b><span>Suspensos ou cancelados</span></div><div class="tile"><b>'+n.alunos+'</b><span>Alunos</span></div><div class="tile"><b>'+n.a7+'</b><span>Ativos em 7 dias</span></div></div></section>'+
+   '<section class="panel" style="margin-top:12px">'+(clientes.length?clientes.map(cliHTML).join(''):'<p style="color:var(--muted);margin:0">Nenhum cliente cadastrado.</p>')+'</section>';
+}
+function cliForm(){
+  return '<div class="mh"><h2>Novo cliente</h2><button type="button" class="btn sm" data-act="close">Fechar</button></div><form class="nameform" id="newcli">'+
+   '<label>Nome do cliente (professor ou escolinha)<input class="fld" name="nome" required maxlength="80"></label>'+
+   '<label>E-mail do professor<input class="fld" name="email" type="email" required></label>'+
+   '<label>Senha provisória (mín. 8 caracteres)<input class="fld" name="senha" type="text" minlength="8" required autocomplete="off"></label>'+
+   '<label>Situação inicial<select class="fld" name="status"><option value="teste">Em teste</option><option value="ativo">Ativo (já pagou)</option></select></label>'+
+   '<button type="submit" class="btn primary">Criar cliente</button></form>';
+}
+async function callAdmin(body,okMsg,fechar){
+  var r=await SB.functions.invoke('gerenciar-professores',{body:body}),m=r.data&&r.data.erro;
+  if(r.error&&!m&&r.error.context&&r.error.context.json){try{m=(await r.error.context.json()).erro;}catch(e){}}
+  if(r.error||m){toast(m||'Não foi possível concluir');return;}
+  if(fechar)closeModal();await loadClientes();renderMain();toast(okMsg);
+}
 async function loadProfs(){var q=await SB.from('professores').select('user_id,email').order('email');profs=q.data||[];}
 async function callProf(body,okMsg,f){
   var r=await SB.functions.invoke('gerenciar-professores',{body:body}),m=r.data&&r.data.erro;
@@ -688,6 +725,7 @@ function ago(ts){
 /* ---------- render principal ---------- */
 function renderHeader(){
   if(!CM()&&(ui.view==='biblioteca'||ui.view==='painel'))ui.view='treino';
+  if(ui.view==='clientes'&&!(SUPER&&CM()))ui.view='treino';
   var w=weekStats();
   document.getElementById('weeklbl').textContent=weekLabel()+' · '+w.total+' atividades · '+fmtMin(w.min)+' planejados';
   document.getElementById('stats').innerHTML=
@@ -702,15 +740,16 @@ function renderHeader(){
     return '<button type="button" class="day" data-act="day" data-d="'+d.k+'" aria-pressed="'+(ui.day===d.k)+'" aria-label="'+d.n+', '+s.done+' de '+s.total+' concluídos">'+
       '<span class="t">'+(d.k===today?'hoje':'')+'</span><span class="n">'+d.s+'</span><span class="c">'+s.done+'/'+s.total+'</span><span class="bar"><i style="width:'+p+'%"></i></span></button>';
   }).join('');
-  Array.prototype.forEach.call(document.querySelectorAll('#nav button'),function(b){b.setAttribute('aria-selected',String(b.dataset.v===ui.view));if(b.dataset.cm)b.hidden=!CM();});
-  document.getElementById('days').hidden=ui.view==='semana'||ui.view==='painel'||ui.view==='agenda';
+  Array.prototype.forEach.call(document.querySelectorAll('#nav button'),function(b){b.setAttribute('aria-selected',String(b.dataset.v===ui.view));if(b.dataset.cm)b.hidden=!CM();if(b.dataset.super)b.hidden=!(SUPER&&CM());
+    if(b.dataset.v===ui.view&&!b.hidden){var nv=document.getElementById('nav');nv.scrollLeft=b.offsetLeft-(nv.clientWidth-b.offsetWidth)/2;}});
+  document.getElementById('days').hidden=ui.view==='semana'||ui.view==='painel'||ui.view==='agenda'||ui.view==='clientes';
   var cb=document.getElementById('coachbtn');cb.hidden=!isCoach;cb.setAttribute('aria-pressed',String(ui.coachOn));cb.textContent='Modo professor: '+(ui.coachOn?'ligado':'desligado');
   document.getElementById('who').innerHTML=themeBtn()+(isCoach?'<span>Professor</span><button type="button" data-act="pwd">alterar senha</button><button type="button" data-act="logout">sair</button>':(prog.nome?'<span>'+esc(prog.nome)+'</span>':'')+(inst?'<button type="button" data-act="install">instalar app</button>':''));
   setSync();
 }
 function renderMain(){
   var m=document.getElementById('main');
-  m.innerHTML=ui.view==='treino'?dayView():ui.view==='semana'?weekView():ui.view==='agenda'?agendaView():ui.view==='painel'?panelView():libView();
+  m.innerHTML=ui.view==='treino'?dayView():ui.view==='semana'?weekView():ui.view==='agenda'?agendaView():ui.view==='clientes'?clientesView():ui.view==='painel'?panelView():libView();
   if(ui.view==='biblioteca')renderLibList();
 }
 function render(){renderHeader();renderMain();if(ui.view==='painel')startPanel();}
@@ -1111,6 +1150,16 @@ var H={
    if(!t.dataset.armed){arm(t,'Confirmar exclusão','Excluir');return;}
    SB.from('eventos').delete().eq('id',t.dataset.id).then(function(r){if(r.error){toast('Não foi possível excluir');return;}evs=evs.filter(function(x){return x.id!==t.dataset.id;});renderMain();toast('Evento excluído');});
  },
+ cnew:function(){openModal(cliForm());},
+ cpwd:function(t){var n=prompt('Nova senha para este professor (mínimo 8 caracteres):');if(!n)return;if(n.length<8){toast('Senha muito curta');return;}callAdmin({acao:'redefinir_senha',id:t.dataset.id,senha:n},'Senha alterada.');},
+ cstatus:function(t){
+   var st=t.dataset.s;
+   if((st==='suspenso'||st==='cancelado')&&!t.dataset.armed){arm(t,'Confirmar '+(st==='suspenso'?'suspensão':'cancelamento'),t.textContent);return;}
+   SB.rpc('admin_definir_status',{p_org:t.dataset.id,p_status:st}).then(async function(r){
+     if(r.error){toast(String(r.error.message||'').indexOf('propria')>=0?'Você não pode suspender a sua própria conta':'Não foi possível alterar o status');return;}
+     await loadClientes();renderMain();toast('Status atualizado');
+   });
+ },
  reload:function(){location.reload();},
  theme:function(){applyTheme(themeNow()==='dark'?'light':'dark');renderHeader();},
  vid:function(t){ui.vid=ui.vid===t.dataset.id?null:t.dataset.id;renderMain();},
@@ -1152,6 +1201,7 @@ document.addEventListener('change',function(e){
 document.addEventListener('submit',function(e){
   var id=e.target.getAttribute('id');
   if(id==='loginform'){e.preventDefault();doLogin(e.target);return;}
+  if(id==='newcli'){e.preventDefault();var cf=new FormData(e.target);callAdmin({acao:'criar_cliente',nome:String(cf.get('nome')),email:String(cf.get('email')),senha:String(cf.get('senha')),status:String(cf.get('status'))},'Cliente criado.',true);return;}
   if(id==='newprof'){e.preventDefault();var pf=new FormData(e.target);callProf({acao:'criar',email:String(pf.get('email')),senha:String(pf.get('senha'))},'Professor adicionado.',e.target);return;}
   if(id==='evform'){e.preventDefault();saveEvento(e.target);return;}
   if(id==='newstu'){e.preventDefault();addStudent(e.target);return;}
