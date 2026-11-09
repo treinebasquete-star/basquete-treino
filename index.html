@@ -416,7 +416,7 @@ var ui={view:'treino',cal:{y:new Date().getFullYear(),m:new Date().getMonth(),se
 ui.lib.day=ui.day;
 var P=null,G=null,S=null,onClose=null;
 var DB=null,planRef=null,progRef=null,me={id:null},isCoach=false,syncState='local';
-var profs=[],plans={},pendKey='geral',planReady=false,students=[],panelUnsub=null,panelLoaded=false,panelErr='';
+var ORG=null,profs=[],plans={},pendKey='geral',planReady=false,students=[],panelUnsub=null,panelLoaded=false,panelErr='';
 function CM(){return isCoach&&ui.coachOn;}
 
 /* ---------- persistência ---------- */
@@ -452,7 +452,7 @@ async function flushPlan(){
   if(!SB||!isCoach)return;if(wPlan){qPlan=true;return;}
   wPlan=true;var k=pendKey,pl=plans[k];
   try{
-    if(pl){var x=(k==='geral')?await SB.from('config').upsert({id:1,plano:pl}):await SB.from('alunos').update({plano:pl}).eq('id',k);if(x&&x.error)throw x.error;}
+    if(pl){var x=(k==='geral')?await SB.from('config').upsert({org_id:ORG,plano:pl}):await SB.from('alunos').update({plano:pl}).eq('id',k);if(x&&x.error)throw x.error;}
     pendPlan=false;
   }catch(e){if(!pendPlan)toast('Sem conexão: a alteração será enviada quando a internet voltar');pendPlan=true;}
   wPlan=false;if(qPlan){qPlan=false;flushPlan();}
@@ -479,18 +479,21 @@ async function doLogin(f){
   enterCoach(r.data.user);
 }
 async function enterCoach(u){
-  var q=await SB.from('professores').select('user_id').eq('user_id',u.id);
+  var q=await SB.from('professores').select('user_id,org_id').eq('user_id',u.id);
   if(q.error){gateShow('<h2>Sem conexão</h2><p>Não consegui confirmar o seu acesso. O painel do professor precisa de internet.</p><button type="button" class="btn primary" data-act="reload">Tentar de novo</button>');return;}
   if(!q.data||!q.data.length){await SB.auth.signOut();gateShow(loginHTML('Esta conta não tem acesso de professor.'));return;}
+  ORG=q.data[0].org_id;
+  var og=await SB.from('organizacoes').select('nome,status').eq('id',ORG).maybeSingle();
+  if(og.data&&(og.data.status==='suspenso'||og.data.status==='cancelado')){gateShow('<h2>Conta suspensa</h2><p>O acesso desta conta está suspenso. Entre em contato com o suporte para regularizar.</p><button type="button" class="btn primary" data-act="logout">Sair</button>');return;}
   isCoach=true;ui.coachOn=true;me.id=u.id;DB=SB;progRef=null;
-  var c=await SB.from('config').select('plano').eq('id',1).maybeSingle();
+  var c=await SB.from('config').select('plano').maybeSingle();
   if(c.data&&c.data.plano){plan=normPlan(c.data.plano);plans.geral=plan;}
   else{plans.geral=plan;ui.target='geral';savePlan();}
   gateHide();render();await loadAll();setInterval(loadAll,20000);
 }
 async function loadAll(){
   if(!SB||!isCoach)return;
-  var a=await SB.from('alunos').select('*').order('nome'),c=await SB.from('config').select('plano').eq('id',1).maybeSingle();
+  var a=await SB.from('alunos').select('*').order('nome'),c=await SB.from('config').select('plano').maybeSingle();
   if(a.error){panelErr=a.error.code||'erro';panelLoaded=true;tick();return;}
   panelErr='';await loadProfs();await loadEventos();
   students=a.data.map(function(r){var p=normProg(r.progresso);p.docId=r.id;p.nome=r.nome;p.token=r.token;p.contato=r.contato||'';return p;});
